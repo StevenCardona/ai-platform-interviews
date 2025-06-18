@@ -1,15 +1,22 @@
 "use client";
 
-import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import Link from "next/link";
-import { toast } from "sonner";
-import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { auth } from "@/firebase/client";
+import { signIn, signUp } from "@/lib/actions/auth.action";
 import FormFieldInput from "./FormFieldInput";
 
 const authFormSchema = (type: FormType) => {
@@ -33,12 +40,52 @@ const AuthForm = ({ type }: { type: FormType }) => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       if (type === "sign-up") {
+        const { name, email, password } = values;
+
+        const userCredentials = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        const result = await signUp({
+          name: name!,
+          uid: userCredentials.user.uid,
+          email,
+          password,
+        });
+
+        if (!result?.success) {
+          toast.error(result?.message);
+          return;
+        }
+
         toast.success("Account Created successfully!");
         router.push("/sign-in");
       } else {
+        const { email, password } = values;
+
+        const userCredentials = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        const idToken = await userCredentials.user.getIdToken();
+
+        if (!idToken) {
+          toast.error("Failed to get user token. Please try again.");
+          return;
+        }
+
+        await signIn({
+          email,
+          idToken,
+        });
+
         toast.success("Sign in successfully!");
         router.push("/");
       }
