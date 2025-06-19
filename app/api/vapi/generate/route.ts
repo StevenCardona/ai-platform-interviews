@@ -4,8 +4,11 @@ import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { getCurrentUser } from "@/lib/actions/auth.action";
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
+
   const google = createGoogleGenerativeAI({
     apiKey: process.env.GOOGLE_GENERATIVE_API_KEY,
   });
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
       level: level,
       techstack: techstack.split(","),
       questions: JSON.parse(questions),
-      userId: userid,
+      userId: user?.id!,
       finalized: true,
       coverImage: getRandomInterviewCover(),
       createdAt: new Date().toISOString(),
